@@ -8,6 +8,8 @@ import scala.collection.JavaConverters.seqAsJavaListConverter
 
 object ExecutionUtils {
 
+  private val MIN_EPOCH_MILLIS = -315619200000L
+
   def convertToOdpsPredicate(filters: Seq[Filter]): Predicate = {
     if (filters.isEmpty) {
       return Predicate.NO_PREDICATE
@@ -120,6 +122,14 @@ object ExecutionUtils {
     case _: Byte => true
     case _: Boolean => true
     case _: BigDecimal => true
+    case date: java.sql.Date =>
+      date.getTime >= MIN_EPOCH_MILLIS
+    case localDate: java.time.LocalDate =>
+      localDate.toEpochDay * 86400 * 1000 >= MIN_EPOCH_MILLIS
+    case timestamp: java.sql.Timestamp =>
+      timestamp.getTime >= MIN_EPOCH_MILLIS
+    case instant: java.time.Instant =>
+      instant.toEpochMilli >= MIN_EPOCH_MILLIS
     case _ => false
   }
 
