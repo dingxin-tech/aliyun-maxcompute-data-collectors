@@ -1,5 +1,6 @@
 package org.apache.spark.sql.odps
 
+import com.aliyun.odps.`type`.TypeInfo
 import com.aliyun.odps.table.optimizer.predicate.CompoundPredicate.Operator
 import com.aliyun.odps.table.optimizer.predicate._
 import org.apache.spark.sql.sources._
@@ -10,11 +11,11 @@ object ExecutionUtils {
 
   private val MIN_EPOCH_MILLIS = -315619200000L
 
-  def convertToOdpsPredicate(filters: Seq[Filter]): Predicate = {
+  def convertToOdpsPredicate(filters: Seq[Filter], nameTypeMap: Map[String, TypeInfo]): Predicate = {
     if (filters.isEmpty) {
       return Predicate.NO_PREDICATE
     }
-    new CompoundPredicate(Operator.AND, convertibleFilters(filters).map(convertToOdpsPredicate).asJava)
+    new CompoundPredicate(Operator.AND, convertibleFilters(filters).map(f => convertToOdpsPredicate(f, nameTypeMap)).asJava)
   }
 
   def convertibleFilters(filters: Seq[Filter]): Seq[Filter] = {
@@ -133,18 +134,18 @@ object ExecutionUtils {
     case _ => false
   }
 
-  private def convertToOdpsPredicate(filter: Filter): Predicate = filter match {
-    case EqualTo(attribute, value) => BinaryPredicate.equals(quoteAttribute(attribute), Constant.of(value))
-    case GreaterThan(attribute, value) => BinaryPredicate.greaterThan(quoteAttribute(attribute), Constant.of(value))
-    case GreaterThanOrEqual(attribute, value) => BinaryPredicate.greaterThanOrEqual(quoteAttribute(attribute), Constant.of(value))
-    case LessThan(attribute, value) => BinaryPredicate.lessThan(quoteAttribute(attribute), Constant.of(value))
-    case LessThanOrEqual(attribute, value) => BinaryPredicate.lessThanOrEqual(quoteAttribute(attribute), Constant.of(value))
-    case In(attribute, values) => InPredicate.in(quoteAttribute(attribute), values.map(Constant.of).toList.asJava.asInstanceOf[java.util.List[java.io.Serializable]])
+  private def convertToOdpsPredicate(filter: Filter, nameTypeMap: Map[String, TypeInfo]): Predicate = filter match {
+    case EqualTo(attribute, value) => BinaryPredicate.equals(quoteAttribute(attribute), Constant.of(value, nameTypeMap(attribute)))
+    case GreaterThan(attribute, value) => BinaryPredicate.greaterThan(quoteAttribute(attribute), Constant.of(value, nameTypeMap(attribute)))
+    case GreaterThanOrEqual(attribute, value) => BinaryPredicate.greaterThanOrEqual(quoteAttribute(attribute), Constant.of(value, nameTypeMap(attribute)))
+    case LessThan(attribute, value) => BinaryPredicate.lessThan(quoteAttribute(attribute), Constant.of(value, nameTypeMap(attribute)))
+    case LessThanOrEqual(attribute, value) => BinaryPredicate.lessThanOrEqual(quoteAttribute(attribute), Constant.of(value, nameTypeMap(attribute)))
+    case In(attribute, values) => InPredicate.in(quoteAttribute(attribute), values.map(v => Constant.of(v, nameTypeMap(attribute))).toList.asJava.asInstanceOf[java.util.List[java.io.Serializable]])
     case IsNull(attribute) => UnaryPredicate.isNull(quoteAttribute(attribute))
     case IsNotNull(attribute) => UnaryPredicate.notNull(quoteAttribute(attribute))
-    case And(left, right) => CompoundPredicate.and(convertToOdpsPredicate(left), convertToOdpsPredicate(right))
-    case Or(left, right) => CompoundPredicate.or(convertToOdpsPredicate(left), convertToOdpsPredicate(right))
-    case Not(child) => CompoundPredicate.not(convertToOdpsPredicate(child))
+    case And(left, right) => CompoundPredicate.and(convertToOdpsPredicate(left, nameTypeMap), convertToOdpsPredicate(right, nameTypeMap))
+    case Or(left, right) => CompoundPredicate.or(convertToOdpsPredicate(left, nameTypeMap), convertToOdpsPredicate(right, nameTypeMap))
+    case Not(child) => CompoundPredicate.not(convertToOdpsPredicate(child, nameTypeMap))
     case _ =>
       throw new UnsupportedOperationException(s"Unsupported filter: $filter")
   }

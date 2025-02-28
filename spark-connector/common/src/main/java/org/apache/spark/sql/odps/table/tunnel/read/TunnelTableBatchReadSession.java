@@ -29,6 +29,7 @@ import com.aliyun.odps.table.configuration.SplitOptions;
 import com.aliyun.odps.table.enviroment.EnvironmentSettings;
 import com.aliyun.odps.table.enviroment.ExecutionEnvironment;
 import com.aliyun.odps.table.read.SplitReader;
+import com.aliyun.odps.table.read.TableReadSessionBuilder;
 import com.aliyun.odps.table.read.impl.batch.TableBatchReadSessionBase;
 import com.aliyun.odps.table.read.split.InputSplit;
 import com.aliyun.odps.table.utils.Preconditions;
@@ -48,16 +49,8 @@ public class TunnelTableBatchReadSession extends TableBatchReadSessionBase {
     private final static long DEFAULT_AVERAGE_RECORD_SIZE = 1024;
     private final static long MIN_AVERAGE_RECORD_SIZE = 256;
 
-    public TunnelTableBatchReadSession(TableIdentifier identifier,
-                                       List<PartitionSpec> includedPartitions,
-                                       List<String> requiredDataColumns,
-                                       List<String> requiredPartitionColumns,
-                                       List<Integer> bucketIds,
-                                       SplitOptions splitOptions,
-                                       ArrowOptions arrowOptions,
-                                       EnvironmentSettings settings) throws IOException {
-        super(identifier, includedPartitions, requiredDataColumns,
-                requiredPartitionColumns, bucketIds, splitOptions, arrowOptions, settings, null);
+    public TunnelTableBatchReadSession(TableReadSessionBuilder builder) throws IOException {
+        super(builder);
     }
 
     @Override

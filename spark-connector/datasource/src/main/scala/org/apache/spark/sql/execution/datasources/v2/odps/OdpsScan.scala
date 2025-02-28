@@ -76,14 +76,14 @@ case class OdpsScan(
 
   override def toBatch: Batch = this
 
-  private lazy val partitions = createPartitions()
+  private val project: String = catalogTable.tableIdent.namespace.head
+  private val table: String = catalogTable.tableIdent.name
+  private val schema: String = if (catalog.odpsOptions.enableNamespaceSchema) catalogTable.tableIdent.namespace.last else "default"
 
+  private lazy val partitions = createPartitions()
   private def createTableScan(emptyColumn: Boolean,
                               predicate: Predicate,
                               selectedPartitions: Seq[PartitionSpec]): TableBatchReadSession = {
-    val project = catalogTable.tableIdent.namespace.head
-    val table = catalogTable.tableIdent.name
-    val schema = if (catalog.odpsOptions.enableNamespaceSchema) catalogTable.tableIdent.namespace.last else "default"
 
     val settings = OdpsClient.get.getEnvironmentSettings
     val provider = catalog.odpsOptions.tableReadProvider
@@ -174,7 +174,10 @@ case class OdpsScan(
 
     if (!emptyColumn) {
       val predicate = if (catalog.odpsOptions.filterPushDown) {
-        ExecutionUtils.convertToOdpsPredicate(dataFilters)
+        val sdkTable = catalog.metaClient.getSdkTable(project, schema, table)
+        val nameTypeMap = sdkTable.getSchema.getColumns.asScala
+          .map(column => (column.getName, column.getTypeInfo)).toMap
+        ExecutionUtils.convertToOdpsPredicate(dataFilters, nameTypeMap)
       } else {
         Predicate.NO_PREDICATE
       }

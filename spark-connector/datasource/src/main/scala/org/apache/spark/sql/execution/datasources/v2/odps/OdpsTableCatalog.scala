@@ -52,7 +52,7 @@ class OdpsTableCatalog extends TableCatalog with SupportsNamespaces with SQLConf
   import OdpsTableCatalog._
 
   private var catalogName: String = _
-  private var metaClient: OdpsMetaClient = _
+  var metaClient: OdpsMetaClient = _
 
   var odpsOptions: OdpsOptions = _
   var schemaEnable: Boolean = _

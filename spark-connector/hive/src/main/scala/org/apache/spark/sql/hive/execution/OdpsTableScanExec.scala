@@ -45,7 +45,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.{SerializableConfiguration, Utils}
 import org.apache.spark.sql.odps.{ExecutionUtils, OdpsClient, OdpsEmptyColumnPartition, OdpsPartitionReaderFactory, OdpsScanPartition, OdpsUtils}
 import org.apache.spark.sql.odps.vectorized.OdpsArrowColumnVector
-import org.apache.spark.sql.hive.OdpsOptions
+import org.apache.spark.sql.hive.{HiveExternalCatalog, OdpsOptions}
 import org.apache.spark.util.ThreadUtils
 
 import scala.collection.JavaConverters._
@@ -68,6 +68,11 @@ case class OdpsTableScanExec(
                               dataFilters: Seq[Expression])(
                               @transient private val sparkSession: SparkSession)
   extends LeafExecNode {
+
+  val project: String = relation.tableMeta.database
+  val table: String = relation.tableMeta.identifier.table
+  // TODO: support three tier model
+  val schemaName: String = "default"
 
   require(partitionFilters.isEmpty || relation.isPartitioned,
     "Partition pruning predicates only supported for partitioned tables.")
@@ -175,11 +180,6 @@ case class OdpsTableScanExec(
   private def createTableScan(emptyColumn: Boolean,
                               selectedPartitions: Array[CatalogTablePartition],
                               predicate: OdpsPredicate): TableBatchReadSession = {
-    val project = relation.tableMeta.database
-    val table = relation.tableMeta.identifier.table
-    // TODO: support three tier model
-    val schema = "default"
-
     val settings = OdpsClient.get.getEnvironmentSettings
     val provider = OdpsOptions.odpsTableReaderProvider(conf)
 
@@ -187,7 +187,7 @@ case class OdpsTableScanExec(
     val requiredPartitionSchema = readPartitionSchema.map(attr => attr.name).asJava
 
     val scanBuilder = new TableReadSessionBuilder()
-      .identifier(TableIdentifier.of(project, schema, table))
+      .identifier(TableIdentifier.of(project, schemaName, table))
       .requiredDataColumns(requiredDataSchema)
       .requiredPartitionColumns(requiredPartitionSchema)
       .withSettings(settings)
@@ -245,9 +245,15 @@ case class OdpsTableScanExec(
     val emptyColumn =
       if (readDataSchema.isEmpty && readPartitionSchema.isEmpty) true else false
 
+
+
     if (!emptyColumn) {
       val predicate = if (OdpsOptions.odpsFilterPushDown(conf)) {
-        ExecutionUtils.convertToOdpsPredicate(pushedDownFilters)
+        val externalCatalog: HiveExternalCatalog =
+          sparkSession.sharedState.externalCatalog.unwrapped.asInstanceOf[HiveExternalCatalog]
+        val nameTypeMap = externalCatalog.getOdpsTable(project, table).getSchema.getColumns.asScala
+          .map(column => (column.getName, column.getTypeInfo)).toMap
+        ExecutionUtils.convertToOdpsPredicate(pushedDownFilters, nameTypeMap)
       } else {
         OdpsPredicate.NO_PREDICATE
       }

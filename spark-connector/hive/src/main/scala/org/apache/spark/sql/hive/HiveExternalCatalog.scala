@@ -222,7 +222,7 @@ private[spark] class HiveExternalCatalog(conf: SparkConf, hadoopConf: Configurat
     odpsTableCache.get(key)
   }
 
-  private def getOdpsTable(db: String, table: String, refresh: Boolean = false): Table = {
+  def getOdpsTable(db: String, table: String, refresh: Boolean = false): Table = {
     getOdpsTableOption(db, table, refresh)
       .getOrElse(throw new NoSuchTableException(db, table))
   }

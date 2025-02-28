@@ -30,6 +30,7 @@ import com.aliyun.odps.table.enviroment.EnvironmentSettings;
 import com.aliyun.odps.table.enviroment.ExecutionEnvironment;
 import com.aliyun.odps.table.utils.Preconditions;
 import com.aliyun.odps.table.write.BatchWriter;
+import com.aliyun.odps.table.write.TableWriteSessionBuilder;
 import com.aliyun.odps.table.write.WriterAttemptId;
 import com.aliyun.odps.table.write.WriterCommitMessage;
 import com.aliyun.odps.table.write.impl.batch.TableBatchWriteSessionBase;
@@ -49,19 +50,8 @@ public class TunnelTableBatchWriteSession extends TableBatchWriteSessionBase {
 
     protected transient TableTunnel.UploadSession session;
 
-    public TunnelTableBatchWriteSession(TableIdentifier identifier,
-                                        PartitionSpec partitionSpec,
-                                        boolean overwrite,
-                                        DynamicPartitionOptions dynamicPartitionOptions,
-                                        ArrowOptions arrowOptions,
-                                        EnvironmentSettings settings) throws IOException {
-        super(identifier, partitionSpec, overwrite, dynamicPartitionOptions, arrowOptions, null, settings);
-    }
-
-    public TunnelTableBatchWriteSession(TableIdentifier identifier,
-                                        String sessionId,
-                                        EnvironmentSettings settings) throws IOException {
-        super(identifier, sessionId, settings);
+    public TunnelTableBatchWriteSession(TableWriteSessionBuilder builder) throws IOException {
+        super(builder);
     }
 
     @Override
